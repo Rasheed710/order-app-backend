@@ -20,7 +20,7 @@ const UserFormModal = ({ user, onClose, onSave }: UserFormModalProps) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { token, user: loggedInUser } = useAuth(); // Get logged-in admin user from context
+  const { token, user: loggedInUser,fetchWithAuth } = useAuth(); // Get logged-in admin user from context
 
   const isEditing = !!user;
 
@@ -54,7 +54,7 @@ const UserFormModal = ({ user, onClose, onSave }: UserFormModalProps) => {
     }
 
     try {
-      const res = await fetch(url, {
+      const res = await fetchWithAuth(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ const UserFormModal = ({ user, onClose, onSave }: UserFormModalProps) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              disabled={isEditing} {/* Email usually not editable for existing users */}
+              disabled={isEditing} 
             />
           </div>
           <div className="mb-4">

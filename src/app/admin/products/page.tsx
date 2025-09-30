@@ -1,4 +1,5 @@
 // pages/admin/products.tsx
+"use client"; 
 import { useState, useEffect } from 'react';
 
 import { Product } from '@prisma/client';
@@ -14,13 +15,13 @@ const AdminProductsPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null); // For edit
-  const { token } = useAuth();
+  const { token,fetchWithAuth } = useAuth();
 
   const fetchProducts = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/products', {
+      const res = await fetchWithAuth('/api/products', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -44,22 +45,77 @@ const AdminProductsPage = () => {
     }
   }, [token]);
 
+  // const handleDelete = async (id: string) => {
+  //   if (!confirm('Are you sure you want to delete this product?')) return;
+
+  //   try {
+  //     const res = await fetch(`/api/products/${id}`, {
+  //       method: 'DELETE',
+  //       headers: {
+  //         'Authorization': `Bearer ${token}`,
+  //       },
+  //     });
+
+  //     if (!res.ok) {
+  //       const errData = await res.json();
+  //       throw new Error(errData.message || `Error deleting product: ${res.status}`);
+  //     }
+
+  //     setProducts(products.filter((p) => p.id !== id));
+  //     alert('Product deleted successfully!');
+  //   } catch (err: any) {
+  //     setError(err.message);
+  //     alert(err.message);
+  //   }
+  // };
+  // const handleDelete = async (id: string) => {
+  //   if (!confirm('Are you sure you want to delete this product?')) return;
+  
+  //   try {
+  //     const res = await fetch(`/api/products/${id}`, {
+  //       method: 'DELETE',
+  //       headers: {
+  //         'Authorization': `Bearer ${token}`,
+  //       },
+  //     });
+  
+  //     if (!res.ok) {
+  //       // Try parsing JSON only if content-length > 0
+  //       let errMessage = `Error deleting product: ${res.status}`;
+  //       const contentLength = res.headers.get('content-length');
+  //       if (contentLength && parseInt(contentLength) > 0) {
+  //         const errData = await res.json();
+  //         errMessage = errData.message || errMessage;
+  //       }
+  //       throw new Error(errMessage);
+  //     }
+  
+  //     setProducts(products.filter((p) => p.id !== id));
+  //     alert('Product deleted successfully!');
+  //   } catch (err: any) {
+  //     setError(err.message);
+  //     alert(err.message);
+  //   }
+  // };
+  
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return;
-
+  
     try {
-      const res = await fetch(`/api/products/${id}`, {
+      const res = await fetchWithAuth(`/api/products/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
       });
-
+  
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || `Error deleting product: ${res.status}`);
+        let errMessage = `Error deleting product: ${res.status}`;
+        if (res.headers.get('content-type')?.includes('application/json')) {
+          const errData = await res.json();
+          errMessage = errData.message || errMessage;
+        }
+        throw new Error(errMessage);
       }
-
+  
       setProducts(products.filter((p) => p.id !== id));
       alert('Product deleted successfully!');
     } catch (err: any) {
@@ -67,6 +123,7 @@ const AdminProductsPage = () => {
       alert(err.message);
     }
   };
+  
 
   const openCreateModal = () => {
     setCurrentProduct(null);

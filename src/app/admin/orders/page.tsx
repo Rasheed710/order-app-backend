@@ -1,4 +1,5 @@
 // pages/admin/orders.tsx
+"use client"; 
 import { useState, useEffect } from 'react';
 
 import { Order, User, OrderItem, Product } from '@prisma/client';
@@ -19,13 +20,13 @@ const AdminOrdersPage = () => {
   const [orders, setOrders] = useState<OrderWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { token } = useAuth();
+  const { token,fetchWithAuth } = useAuth();
 
   const fetchOrders = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/orders', {
+      const res = await fetchWithAuth('/api/orders', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -53,7 +54,7 @@ const AdminOrdersPage = () => {
     if (!confirm(`Are you sure you want to change status of Order ${orderId.substring(0, 8)}... to ${newStatus}?`)) return;
 
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await fetchWithAuth(`/api/orders/${orderId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -1,3 +1,4 @@
+"use client"; 
 import { useState, useEffect } from 'react';
 
 import { User } from '@prisma/client';
@@ -15,13 +16,13 @@ const AdminUsersPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null); // For edit
-    const { token, user: loggedInUser } = useAuth(); // Get logged-in admin user
+    const { token, user: loggedInUser,fetchWithAuth } = useAuth(); // Get logged-in admin user
   
     const fetchUsers = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/admin/users', {
+        const res = await fetchWithAuth('/api/admin/users', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -53,7 +54,7 @@ const AdminUsersPage = () => {
       if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
   
       try {
-        const res = await fetch(`/api/admin/users/${id}`, {
+        const res = await fetchWithAuth(`/api/admin/users/${id}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,

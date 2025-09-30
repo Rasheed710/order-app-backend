@@ -41,6 +41,32 @@ import jwt from "jsonwebtoken";
 import prisma from "../../../../../lib/prisma";
 
 
+// export async function POST(req: Request) {
+//   try {
+//     const { email, password } = await req.json();
+
+//     const user = await prisma.user.findUnique({ where: { email } });
+//     if (!user || !(await bcrypt.compare(password, user.password))) {
+//       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
+//     }
+
+//     const token = jwt.sign(
+//       { userId: user.id, email: user.email, role: user.role },
+//       process.env.JWT_SECRET!,
+//       { expiresIn: "1h" }
+//     );
+// console.log(user,'userrrr')
+//     return NextResponse.json({
+//       message: "Login successful",
+//       token,
+//       user: { id: user.id, email: user.email, name: user.name, role: user.role },
+//     });
+//   } catch (error) {
+//     console.error("Login error:", error);
+//     return NextResponse.json({ message: "Something went wrong during login" }, { status: 500 });
+//   }
+// }
+
 export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
@@ -50,15 +76,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
     }
 
-    const token = jwt.sign(
+    // Short-lived access token (for API requests)
+    const accessToken = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
+      { expiresIn: "15m" } // 15 minutes
     );
+
+    // Long-lived refresh token (to get new access tokens)
+    const refreshToken = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_REFRESH_SECRET!, // use a separate secret
+      { expiresIn: "7d" } // 7 days
+    );
+
+    // Save refresh token in DB for this user
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken },
+    });
 
     return NextResponse.json({
       message: "Login successful",
-      token,
+      accessToken,
+      refreshToken,
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
     });
   } catch (error) {

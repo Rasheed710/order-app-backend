@@ -13,46 +13,100 @@ const ProductFormModal = ({ product, onClose, onSave }: ProductFormModalProps) =
   const [name, setName] = useState(product?.name || '');
   const [description, setDescription] = useState(product?.description || '');
   const [price, setPrice] = useState(product?.price.toString() || '');
-  const [imageUrl, setImageUrl] = useState(product?.imageUrl || '');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  useEffect(() => {
+    if (product?.imageUrl) {
+      setPreviewUrl(product.imageUrl); // This could be something like "/uploads/xxx.webp"
+    }
+  }, [product]);
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setPreviewUrl(URL.createObjectURL(file)); // preview image
+    }
+  };
   const [category, setCategory] = useState(product?.category || '');
   const [stock, setStock] = useState(product?.stock.toString() || '0');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { token } = useAuth();
+  const { token, fetchWithAuth } = useAuth();
 
   const isEditing = !!product;
+console.log(imageFile,'hi')
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   setLoading(true);
+  //   setError(null);
 
+  //   const method = isEditing ? 'PUT' : 'POST';
+  //   const url = isEditing ? `/api/products/${product.id}` : '/api/products';
+
+  //   try {
+  //     const res = await fetch(url, {
+  //       method,
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': `Bearer ${token}`,
+  //       },
+  //       body: JSON.stringify({
+  //         name,
+  //         description,
+  //         price: parseFloat(price),
+  //         imageFile,
+  //         category,
+  //         stock: parseInt(stock),
+  //       }),
+  //     });
+
+  //     const data = await res.json();
+
+  //     if (!res.ok) {
+  //       throw new Error(data.message || `Failed to ${isEditing ? 'update' : 'create'} product`);
+  //     }
+
+  //     onSave(); // Refresh list
+  //     onClose(); // Close modal
+  //   } catch (err: any) {
+  //     setError(err.message || 'An unexpected error occurred.');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+  
     const method = isEditing ? 'PUT' : 'POST';
     const url = isEditing ? `/api/products/${product.id}` : '/api/products';
-
+  
     try {
-      const res = await fetch(url, {
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('description', description);
+      formData.append('price', price);
+      formData.append('category', category);
+      formData.append('stock', stock.toString());
+      if (imageFile) {
+        formData.append('image', imageFile); // key must match API file field
+      }
+  
+      const res = await fetchWithAuth(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`, // do NOT set Content-Type manually
         },
-        body: JSON.stringify({
-          name,
-          description,
-          price: parseFloat(price),
-          imageUrl,
-          category,
-          stock: parseInt(stock),
-        }),
+        body: formData,
       });
-
+  
       const data = await res.json();
-
+  
       if (!res.ok) {
         throw new Error(data.message || `Failed to ${isEditing ? 'update' : 'create'} product`);
       }
-
+  
       onSave(); // Refresh list
       onClose(); // Close modal
     } catch (err: any) {
@@ -61,7 +115,7 @@ const ProductFormModal = ({ product, onClose, onSave }: ProductFormModalProps) =
       setLoading(false);
     }
   };
-
+  
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex justify-center items-center z-50">
       <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg mx-auto">
@@ -128,7 +182,7 @@ const ProductFormModal = ({ product, onClose, onSave }: ProductFormModalProps) =
               />
             </div>
           </div>
-          <div className="mb-4">
+          {/* <div className="mb-4">
             <label htmlFor="imageUrl" className="block text-gray-700 text-sm font-bold mb-2">
               Image URL
             </label>
@@ -139,7 +193,28 @@ const ProductFormModal = ({ product, onClose, onSave }: ProductFormModalProps) =
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
             />
-          </div>
+          </div> */}
+           <div className="mb-4">
+      <label htmlFor="image" className="block text-gray-700 text-sm font-bold mb-2">
+        Select Image
+      </label>
+      <input
+        type="file"
+        id="image"
+        accept="image/*"
+        onChange={handleImageChange}
+        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4
+                   file:rounded file:border-0 file:text-sm file:font-semibold
+                   file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+      />
+      {previewUrl && (
+        <img
+          src={previewUrl}
+          alt="Preview"
+          className="mt-2 max-h-40 rounded border"
+        />
+      )}
+    </div>
           <div className="mb-6">
             <label htmlFor="category" className="block text-gray-700 text-sm font-bold mb-2">
               Category
