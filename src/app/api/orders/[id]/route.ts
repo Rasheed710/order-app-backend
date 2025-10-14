@@ -76,6 +76,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
+        party: { select: { id: true, name: true, email: true, phone: true } },
         user: { select: { id: true, name: true, email: true } },
         orderItems: { include: { product: true } },
       },
@@ -98,24 +99,73 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 }
 
 // PUT: Update order status (Admins only)
+// export async function PUT(req: Request, { params }: { params: { id: string } }) {
+//   return adminMiddleware(async ({ id, body }) => {
+//     try {
+//       const body = await req.json(); // parse JSON body
+//       const { status } = body;
+//       if (!['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED'].includes(status)) {
+//         return NextResponse.json({ message: 'Invalid order status' }, { status: 400 })
+//       }
+
+//       const updatedOrder = await prisma.order.update({
+//         where: { id },
+//         data: { status },
+//         include: { user: { select: { name: true } } },
+//       })
+
+//       return NextResponse.json(updatedOrder, { status: 200 })
+//     } catch (error) {
+//       console.error('Update order error:', error)
+//       return NextResponse.json({ message: 'Something went wrong updating order' }, { status: 500 })
+//     }
+//   })(req, params)
+// }
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  return adminMiddleware(async ({ id, body }) => {
+  // Extract order id from route params
+  const { id } = params;
+
+  if (!id) {
+    return NextResponse.json({ message: "Order ID is required" }, { status: 400 });
+  }
+
+  return authMiddleware(async (req, context) => {
     try {
-      const { status } = body
+      const { userId, userRole } = context;
+
+      if (userRole !== "ADMIN") {
+        return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
+      }
+
+      const body = await req.json();
+      const { status } = body;
+
       if (!['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED'].includes(status)) {
-        return NextResponse.json({ message: 'Invalid order status' }, { status: 400 })
+        return NextResponse.json({ message: "Invalid order status" }, { status: 400 });
       }
 
       const updatedOrder = await prisma.order.update({
-        where: { id },
+        where: { id }, // use extracted route param
         data: { status },
-        include: { user: { select: { name: true } } },
-      })
+        include: {
+          user: { select: { name: true, email: true } },
+          party: { select: { name: true } },
+          orderItems: {
+            include: {
+              product: { select: { name: true, price: true, stock: true } }
+            }
+          }
+        }
+      });
 
-      return NextResponse.json(updatedOrder, { status: 200 })
+      return NextResponse.json(updatedOrder, { status: 200 });
     } catch (error) {
-      console.error('Update order error:', error)
-      return NextResponse.json({ message: 'Something went wrong updating order' }, { status: 500 })
+      console.error("Update order error:", error);
+      return NextResponse.json(
+        { message: "Something went wrong updating order" },
+        { status: 500 }
+      );
     }
-  })(req, params)
+  })(req, { params });
 }
+

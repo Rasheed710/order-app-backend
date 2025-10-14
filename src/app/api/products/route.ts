@@ -198,7 +198,7 @@ export const config = {
 
 export const runtime = "nodejs"; // ✅ Required for formidable
 
-async function parseForm(req: Request) {
+export default async function parseForm(req: Request) {
   const form = formidable({ multiples: false });
   const nodeReq = toNodeRequest(req);
 

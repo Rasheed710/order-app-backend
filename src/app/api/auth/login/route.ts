@@ -100,7 +100,12 @@ export async function POST(req: Request) {
       message: "Login successful",
       accessToken,
       refreshToken,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: { id: user.id,
+        email: user.email,
+        name: user.name,
+        mobile: user.mobile,
+        role: user.role,
+        image: user.image,},
     });
   } catch (error) {
     console.error("Login error:", error);

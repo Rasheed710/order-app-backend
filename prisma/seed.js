@@ -62,8 +62,10 @@ function main() {
                             data: {
                                 email: adminEmail,
                                 password: hashedPassword,
+                                mobile: "9999999999",
                                 name: 'Admin User',
                                 role: 'ADMIN',
+                                isVerified: true,
                             },
                         })];
                 case 3:

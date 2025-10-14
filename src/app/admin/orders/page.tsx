@@ -52,7 +52,7 @@ const AdminOrdersPage = () => {
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     if (!confirm(`Are you sure you want to change status of Order ${orderId.substring(0, 8)}... to ${newStatus}?`)) return;
-
+console.log(newStatus,'new')
     try {
       const res = await fetchWithAuth(`/api/orders/${orderId}`, {
         method: 'PUT',
@@ -132,7 +132,7 @@ const AdminOrdersPage = () => {
                   {order.id.substring(0, 8)}...
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {order.user?.name || order.user?.email || 'N/A'}
+                  {order?.party?.name || order?.party?.email || 'N/A'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${order.total.toFixed(2)}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -152,7 +152,7 @@ const AdminOrdersPage = () => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {new Date(order.createdAt).toLocaleDateString()}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                {/* <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <select
                     value={order.status}
                     onChange={(e) => handleStatusChange(order.id, e.target.value)}
@@ -164,7 +164,45 @@ const AdminOrdersPage = () => {
                       </option>
                     ))}
                   </select>
-                </td>
+                </td> */}
+                {/* <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+  <select
+    value={order.status}
+    onChange={(e) => handleStatusChange(order.id, e.target.value)}
+    className="block max-w-xs pl-2 pr-6 py-1 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md"
+  >
+    {OrderStatusOptions.map((statusOption) => (
+      <option key={statusOption} value={statusOption}>
+        {statusOption}
+      </option>
+    ))}
+  </select>
+</td> */}
+<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+  <div className="relative inline-block w-full max-w-xs">
+    <select
+      value={order.status}
+      onChange={(e) => handleStatusChange(order.id, e.target.value)}
+      className="
+        block w-full appearance-none bg-white border border-gray-300 
+        text-gray-700 py-2 px-3 pr-8 rounded-lg shadow-sm 
+        focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+        transition duration-200 ease-in-out
+      "
+    >
+      {OrderStatusOptions.map((statusOption) => (
+        <option key={statusOption} value={statusOption}>
+          {statusOption}
+        </option>
+      ))}
+    </select>
+    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  </div>
+</td>
               </tr>
             ))}
           </tbody>

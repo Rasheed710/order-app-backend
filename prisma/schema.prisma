@@ -12,11 +12,18 @@ model User {
   id        String    @id @default(uuid())
   email     String    @unique
   password  String
-  name      String?
+  name      String
+  mobile    String    @unique
+  image     String?
   role      String    @default("CUSTOMER") // "CUSTOMER", "ADMIN"
+  isVerified Boolean  @default(false)
   orders    Order[]
+  otp           String?
+  otpExpiresAt   DateTime?
+  otpLastSentAt  DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+  refreshToken String? 
 }
 
 model Product {
@@ -36,6 +43,8 @@ model Order {
   id        String    @id @default(uuid())
   userId    String
   user      User      @relation(fields: [userId], references: [id])
+  partyId    String
+  party      Party       @relation(fields: [partyId], references: [id]) 
   status    String    @default("PENDING") // PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED
   total     Float
   createdAt DateTime  @default(now())
@@ -53,4 +62,13 @@ model OrderItem {
   price     Float // Price at the time of order
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+model Party {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+   orders  Order[] 
 }

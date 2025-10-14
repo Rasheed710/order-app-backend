@@ -26,7 +26,8 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "sharp": "^0.34.4",
-    "tailwindcss": "^4.1.13"
+    "tailwindcss": "^4.1.13",
+    "twilio": "^5.10.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -19,8 +19,10 @@ async function main() {
       data: {
         email: adminEmail,
         password: hashedPassword,
+        mobile: "9999999999", 
         name: 'Admin User',
         role: 'ADMIN',
+        isVerified: true,
       },
     });
     console.log(`Admin user created: ${adminEmail} (password: ${adminPassword})`);

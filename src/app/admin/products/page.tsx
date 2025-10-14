@@ -22,6 +22,7 @@ const AdminProductsPage = () => {
     setError(null);
     try {
       const res = await fetchWithAuth('/api/products', {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
         },

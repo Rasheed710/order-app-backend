@@ -105,14 +105,63 @@ export interface AuthenticatedContext {
 //     }
 //   };
 // };
+// export const authMiddleware = (
+//   handler: (req: NextRequest, context: AuthenticatedContext & { params: any }) => Promise<NextResponse>
+// ) => {
+//   return async (req: NextRequest, context: { params: any }) => {
+//     const authHeader = req.headers.get("authorization");
+
+//     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//       return NextResponse.json({ message: "Authentication required: No token provided" }, { status: 401 });
+//     }
+
+//     const token = authHeader.split(" ")[1];
+
+//     try {
+//       const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+//         userId: string;
+//         email: string;
+//         role: string;
+//         exp: number;
+//       };
+
+//       if (decoded.exp * 1000 < Date.now()) {
+//         return NextResponse.json({ message: "Authentication required: Token expired" }, { status: 401 });
+//       }
+
+//       // Check if user exists
+//       const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+//       if (!user) {
+//         return NextResponse.json({ message: "Authentication required: User not found" }, { status: 401 });
+//       }
+
+//       const authContext: AuthenticatedContext = {
+//         userId: decoded.userId,
+//         userEmail: decoded.email,
+//         userRole: decoded.role,
+//       };
+
+//       // ✅ Forward context INCLUDING params
+//       return handler(req, { ...context, ...authContext });
+//     } catch (error) {
+//       console.error("JWT verification error:", error);
+//       return NextResponse.json({ message: "Authentication required: Invalid token" }, { status: 401 });
+//     }
+//   };
+// };
+
+
 export const authMiddleware = (
-  handler: (req: NextRequest, context: AuthenticatedContext & { params: any }) => Promise<NextResponse>
+  handler: (req: NextRequest, context: AuthenticatedContext & { params?: any }) => Promise<NextResponse>
 ) => {
-  return async (req: NextRequest, context: { params: any }) => {
+  return async (req: NextRequest, context: { params?: any }) => {
     const authHeader = req.headers.get("authorization");
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return NextResponse.json({ message: "Authentication required: No token provided" }, { status: 401 });
+      return NextResponse.json(
+        { message: "Authentication required: No token provided" },
+        { status: 401 }
+      );
     }
 
     const token = authHeader.split(" ")[1];
@@ -126,26 +175,36 @@ export const authMiddleware = (
       };
 
       if (decoded.exp * 1000 < Date.now()) {
-        return NextResponse.json({ message: "Authentication required: Token expired" }, { status: 401 });
+        return NextResponse.json(
+          { message: "Authentication required: Token expired" },
+          { status: 401 }
+        );
       }
 
-      // Check if user exists
+      // Ensure user exists
       const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
       if (!user) {
-        return NextResponse.json({ message: "Authentication required: User not found" }, { status: 401 });
+        return NextResponse.json(
+          { message: "Authentication required: User not found" },
+          { status: 401 }
+        );
       }
 
-      const authContext: AuthenticatedContext = {
+      // ✅ Pass context correctly
+      const authContext: AuthenticatedContext & { params?: any } = {
         userId: decoded.userId,
         userEmail: decoded.email,
         userRole: decoded.role,
+        params: context?.params,
       };
 
-      // ✅ Forward context INCLUDING params
-      return handler(req, { ...context, ...authContext });
-    } catch (error) {
-      console.error("JWT verification error:", error);
-      return NextResponse.json({ message: "Authentication required: Invalid token" }, { status: 401 });
+      return handler(req, authContext);
+    } catch (err) {
+      console.error("JWT verification error:", err);
+      return NextResponse.json(
+        { message: "Authentication required: Invalid token" },
+        { status: 401 }
+      );
     }
   };
 };
