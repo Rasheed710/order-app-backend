@@ -67,48 +67,117 @@ import prisma from "../../../../../lib/prisma";
 //   }
 // }
 
+// export async function POST(req: Request) {
+//   try {
+//     const { email, password } = await req.json();
+
+//     const user = await prisma.user.findUnique({ where: { email } });
+//     if (!user || !(await bcrypt.compare(password, user.password))) {
+//       return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
+//     }
+
+//     // Short-lived access token (for API requests)
+//     const accessToken = jwt.sign(
+//       { userId: user.id, email: user.email, role: user.role },
+//       process.env.JWT_SECRET!,
+//       { expiresIn: "15m" } // 15 minutes
+//     );
+
+//     // Long-lived refresh token (to get new access tokens)
+//     const refreshToken = jwt.sign(
+//       { userId: user.id },
+//       process.env.JWT_REFRESH_SECRET!, // use a separate secret
+//       { expiresIn: "7d" } // 7 days
+//     );
+
+//     // Save refresh token in DB for this user
+//     await prisma.user.update({
+//       where: { id: user.id },
+//       data: { refreshToken },
+//     });
+
+//     return NextResponse.json({
+//       message: "Login successful",
+//       accessToken,
+//       refreshToken,
+//       user: { id: user.id,
+//         email: user.email,
+//         name: user.name,
+//         mobile: user.mobile,
+//         role: user.role,
+//         image: user.image,},
+//     });
+//   } catch (error) {
+//     console.error("Login error:", error);
+//     return NextResponse.json({ message: "Something went wrong during login" }, { status: 500 });
+//   }
+// }
 export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
 
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return NextResponse.json({ message: "Invalid credentials" }, { status: 401 });
+    // ✅ Validate input
+    if (!email || !password) {
+      return NextResponse.json(
+        { message: "Email and password are required" },
+        { status: 400 }
+      );
     }
 
-    // Short-lived access token (for API requests)
+    // ✅ Check user
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return NextResponse.json(
+        { message: "Invalid credentials" },
+        { status: 401 }
+      );
+    }
+
+    // ✅ Generate access token (short-lived)
     const accessToken = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET!,
       { expiresIn: "15m" } // 15 minutes
     );
 
-    // Long-lived refresh token (to get new access tokens)
+    // ✅ Generate refresh token (long-lived)
     const refreshToken = jwt.sign(
       { userId: user.id },
-      process.env.JWT_REFRESH_SECRET!, // use a separate secret
+      process.env.JWT_REFRESH_SECRET!,
       { expiresIn: "7d" } // 7 days
     );
 
-    // Save refresh token in DB for this user
+    // ✅ Save refresh token
     await prisma.user.update({
       where: { id: user.id },
       data: { refreshToken },
     });
 
+    // ✅ Append base URL for image (consistent with all other APIs)
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+    const userWithFullUrl = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      mobile: user.mobile,
+      role: user.role,
+      image: user.image ? `${baseUrl}${user.image}` : null,
+    };
+
+    // ✅ Response
     return NextResponse.json({
       message: "Login successful",
       accessToken,
       refreshToken,
-      user: { id: user.id,
-        email: user.email,
-        name: user.name,
-        mobile: user.mobile,
-        role: user.role,
-        image: user.image,},
+      user: userWithFullUrl,
     });
   } catch (error) {
     console.error("Login error:", error);
-    return NextResponse.json({ message: "Something went wrong during login" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Something went wrong during login" },
+      { status: 500 }
+    );
   }
 }

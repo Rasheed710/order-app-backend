@@ -190,6 +190,7 @@ const AdminLayout = ({ children, title = "Admin Panel" }: AdminLayoutProps) => {
     { name: 'Orders', href: '/admin/orders', icon: '📝' },
     { name: 'Users', href: '/admin/users', icon: '👥' },
     { name: 'Parties', href: '/admin/parties', icon: '🏢' }, // 👈 Added Parties
+    { name: 'Attendance', href: '/admin/attendance', icon: '⏰' }, 
   ];
 
   return (

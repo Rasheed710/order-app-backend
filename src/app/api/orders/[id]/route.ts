@@ -66,37 +66,227 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../../../lib/prisma'
 import { authMiddleware, adminMiddleware } from '../../../../../lib/authMiddleware'
+import { logOrderActivity } from '../../../../../lib/orderLogger';
 
 // GET: Fetch single order
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+// export async function GET(req: Request, { params }: { params: { id: string } }) {
+//   try {
+//     const { userId, userRole } = await authMiddleware(req)
+//     const { id } = params
+
+//     const order = await prisma.order.findUnique({
+//       where: { id },
+//       include: {
+//         party: { select: { id: true, name: true, email: true, phone: true } },
+//         user: { select: { id: true, name: true, email: true } },
+//         orderItems: { include: { product: true } },
+//       },
+//     })
+
+//     if (!order) {
+//       return NextResponse.json({ message: 'Order not found' }, { status: 404 })
+//     }
+
+//     // Restrict customer from viewing others' orders
+//     if (userRole === 'CUSTOMER' && order.userId !== userId) {
+//       return NextResponse.json({ message: 'Forbidden: You can only view your own orders' }, { status: 403 })
+//     }
+
+//     return NextResponse.json(order, { status: 200 })
+//   } catch (error) {
+//     console.error('Get order error:', error)
+//     return NextResponse.json({ message: 'Something went wrong fetching order' }, { status: 500 })
+//   }
+// }
+
+// export async function GET(req: Request, { params }: { params: { id: string } }) {
+//   try {
+//     const { userId, userRole } = await authMiddleware(req);
+//     const { id } = params;
+
+//     if (!id) {
+//       return NextResponse.json({ message: "Order ID is required" }, { status: 400 });
+//     }
+
+//     const order = await prisma.order.findUnique({
+//       where: { id },
+//       include: {
+//         party: {
+//           select: {
+//             id: true,
+//             name: true,
+//             email: true,
+//             phone: true,
+//             address: true,
+//           },
+//         },
+//         user: { select: { id: true, name: true, email: true } },
+//         orderItems: {
+//           include: {
+//             product: {
+//               select: {
+//                 id: true,
+//                 name: true,
+//                 price: true,
+//                 stock: true,
+//               },
+//             },
+//           },
+//         },
+//       },
+//     });
+
+//     if (!order) {
+//       return NextResponse.json({ message: "Order not found" }, { status: 404 });
+//     }
+
+//     // Restrict non-admin users from accessing others' orders
+//     if (userRole !== "ADMIN" && order.userId !== userId) {
+//       return NextResponse.json(
+//         { message: "Forbidden: You can only view your own orders" },
+//         { status: 403 }
+//       );
+//     }
+
+//     return NextResponse.json(order, { status: 200 });
+//   } catch (error: any) {
+//     console.error("Get order error:", error);
+
+//     if (error.message?.includes("Token expired")) {
+//       return NextResponse.json({ message: "Token expired" }, { status: 401 });
+//     }
+
+//     return NextResponse.json(
+//       { message: "Something went wrong fetching order" },
+//       { status: 500 }
+//     );
+//   }
+// }
+// export const GET = authMiddleware(async (req, context) => {
+//   try {
+//     const { userId, userRole, params } = context;
+//     const { id } = params;
+
+//     if (!id) {
+//       return NextResponse.json(
+//         { message: "Order ID is required" },
+//         { status: 400 }
+//       );
+//     }
+
+//     // ✅ Fetch order with relations
+//     const order = await prisma.order.findUnique({
+//       where: { id },
+//       include: {
+//         party: {
+//           select: {
+//             id: true,
+//             name: true,
+//             email: true,
+//             phone: true,
+//             address: true,
+//           },
+//         },
+//         user: { select: { id: true, name: true, email: true } },
+//         orderItems: {
+//           include: {
+//             product: {
+//               select: {
+//                 id: true,
+//                 name: true,
+//                 price: true,
+//                 stock: true,
+//               },
+//             },
+//           },
+//         },
+//       },
+//     });
+
+//     if (!order) {
+//       return NextResponse.json({ message: "Order not found" }, { status: 404 });
+//     }
+
+//     // ✅ Access restriction for non-admins
+//     if (userRole !== "ADMIN" && order.userId !== userId) {
+//       return NextResponse.json(
+//         { message: "Forbidden: You can only view your own orders" },
+//         { status: 403 }
+//       );
+//     }
+
+//     return NextResponse.json(order, { status: 200 });
+//   } catch (error: any) {
+//     console.error("Get order error:", error);
+
+//     if (error.message?.includes("Token expired")) {
+//       return NextResponse.json({ message: "Token expired" }, { status: 401 });
+//     }
+
+//     return NextResponse.json(
+//       { message: "Something went wrong fetching order" },
+//       { status: 500 }
+//     );
+//   }
+// });
+export const GET = authMiddleware(async (req, context) => {
   try {
-    const { userId, userRole } = await authMiddleware(req)
-    const { id } = params
+    const { userId, userRole, params } = context;
+    const { id } = params;
+
+    if (!id) {
+      return NextResponse.json({ message: "Order ID is required" }, { status: 400 });
+    }
 
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
-        party: { select: { id: true, name: true, email: true, phone: true } },
+        party: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            address: true,
+          },
+        },
         user: { select: { id: true, name: true, email: true } },
-        orderItems: { include: { product: true } },
+        orderItems: {
+          include: {
+            product: {
+              select: { id: true, name: true, price: true, stock: true },
+            },
+          },
+        },
       },
-    })
+    });
 
     if (!order) {
-      return NextResponse.json({ message: 'Order not found' }, { status: 404 })
+      return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
 
-    // Restrict customer from viewing others' orders
-    if (userRole === 'CUSTOMER' && order.userId !== userId) {
-      return NextResponse.json({ message: 'Forbidden: You can only view your own orders' }, { status: 403 })
+    // ✅ Restrict normal users to their own orders
+    if (userRole !== "ADMIN" && order.userId !== userId) {
+      return NextResponse.json(
+        { message: "Forbidden: You can only view your own orders" },
+        { status: 403 }
+      );
     }
 
-    return NextResponse.json(order, { status: 200 })
-  } catch (error) {
-    console.error('Get order error:', error)
-    return NextResponse.json({ message: 'Something went wrong fetching order' }, { status: 500 })
+    return NextResponse.json(order, { status: 200 });
+  } catch (error: any) {
+    console.error("Get order error:", error);
+
+    if (error.message?.includes("Token expired")) {
+      return NextResponse.json({ message: "Token expired" }, { status: 401 });
+    }
+
+    return NextResponse.json(
+      { message: "Something went wrong fetching order" },
+      { status: 500 }
+    );
   }
-}
+});
 
 // PUT: Update order status (Admins only)
 // export async function PUT(req: Request, { params }: { params: { id: string } }) {
@@ -121,8 +311,242 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 //     }
 //   })(req, params)
 // }
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  // Extract order id from route params
+// export async function PUT(req: Request, { params }: { params: { id: string } }) {
+//   // Extract order id from route params
+//   const { id } = params;
+
+//   if (!id) {
+//     return NextResponse.json({ message: "Order ID is required" }, { status: 400 });
+//   }
+
+//   return authMiddleware(async (req, context) => {
+//     try {
+//       const { userId, userRole } = context;
+
+//       if (userRole !== "ADMIN") {
+//         return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
+//       }
+
+//       const body = await req.json();
+//       const { status } = body;
+
+//       if (!['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED'].includes(status)) {
+//         return NextResponse.json({ message: "Invalid order status" }, { status: 400 });
+//       }
+
+//       const updatedOrder = await prisma.order.update({
+//         where: { id }, // use extracted route param
+//         data: { status },
+//         include: {
+//           user: { select: { name: true, email: true } },
+//           party: { select: { name: true } },
+//           orderItems: {
+//             include: {
+//               product: { select: { name: true, price: true, stock: true } }
+//             }
+//           }
+//         }
+//       });
+
+//       return NextResponse.json(updatedOrder, { status: 200 });
+//     } catch (error) {
+//       console.error("Update order error:", error);
+//       return NextResponse.json(
+//         { message: "Something went wrong updating order" },
+//         { status: 500 }
+//       );
+//     }
+//   })(req, { params });
+// }
+// export async function PUT(req: Request, { params }: { params: { id: string } }) {
+//   const { id } = params;
+
+//   if (!id) {
+//     return NextResponse.json({ message: "Order ID is required" }, { status: 400 });
+//   }
+
+//   return authMiddleware(async (req, context) => {
+//     try {
+//       const { userRole,userId } = context;
+
+//       if (userRole !== "ADMIN") {
+//         return NextResponse.json({ message: "Unauthorized: Admins only" }, { status: 403 });
+//       }
+
+//       const body = await req.json();
+//       const { status } = body;
+
+//       const validStatuses = ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"];
+//       if (!validStatuses.includes(status)) {
+//         return NextResponse.json(
+//           { message: "Invalid order status", allowed: validStatuses },
+//           { status: 400 }
+//         );
+//       }
+
+//       const existingOrder = await prisma.order.findUnique({ where: { id } });
+//       if (!existingOrder) {
+//         return NextResponse.json({ message: "Order not found" }, { status: 404 });
+//       }
+
+//       const updatedOrder = await prisma.order.update({
+//         where: { id },
+//         data: { status },
+//         include: {
+//           user: { select: { id: true, name: true, email: true } },
+//           party: { select: { id: true, name: true, phone: true, address: true } },
+//           orderItems: {
+//             include: {
+//               product: { select: { id: true, name: true, price: true, stock: true } },
+//             },
+//           },
+//         },
+//       });
+//       await logOrderActivity({
+//         orderId: updatedOrder.id,
+//         userId,
+//         action: "STATUS_UPDATED",
+//         message: `Order status changed to ${status} by ${updatedOrder.user?.name || "Admin"}`,
+//       });
+//       return NextResponse.json(
+//         {
+//           message: `Order status updated to ${status}`,
+//           order: updatedOrder,
+//         },
+//         { status: 200 }
+//       );
+//     } catch (error: any) {
+//       console.error("Update order error:", error);
+
+//       if (error.message?.includes("Token expired")) {
+//         return NextResponse.json({ message: "Token expired" }, { status: 401 });
+//       }
+
+//       return NextResponse.json(
+//         { message: "Something went wrong updating order" },
+//         { status: 500 }
+//       );
+//     }
+//   })(req, { params });
+// }
+
+export const PUT = authMiddleware(async (req, context) => {
+  try {
+    const { userRole, userId, params } = context;
+    const { id } = params;
+
+    if (!id) {
+      return NextResponse.json({ message: "Order ID is required" }, { status: 400 });
+    }
+
+    const body = await req.json();
+    const { status } = body;
+
+    const validStatuses = ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json(
+        { message: "Invalid order status", allowed: validStatuses },
+        { status: 400 }
+      );
+    }
+
+    // 🧾 Fetch the existing order
+    const existingOrder = await prisma.order.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+
+    if (!existingOrder) {
+      return NextResponse.json({ message: "Order not found" }, { status: 404 });
+    }
+
+    // 🧠 Role-based authorization logic
+    if (userRole === "ADMIN") {
+      // ✅ Admin can only update to CONFIRMED, SHIPPED, or CANCELLED
+      if (!["CONFIRMED", "SHIPPED", "CANCELLED"].includes(status)) {
+        return NextResponse.json(
+          {
+            message:
+              "Admins can only change status to CONFIRMED, SHIPPED, or CANCELLED.",
+          },
+          { status: 403 }
+        );
+      }
+    } else {
+      // ✅ Non-admin (salesman/customer)
+      if (userId !== existingOrder.userId) {
+        return NextResponse.json(
+          { message: "Forbidden: You can only update your own orders" },
+          { status: 403 }
+        );
+      }
+
+      if (!["DELIVERED", "CANCELLED"].includes(status)) {
+        return NextResponse.json(
+          {
+            message:
+              "You can only mark your order as DELIVERED or CANCELLED.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    // ✅ Update order status
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: { status },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        party: { select: { id: true, name: true, phone: true, address: true } },
+        orderItems: {
+          include: {
+            product: { select: { id: true, name: true, price: true, stock: true } },
+          },
+        },
+      },
+    });
+
+    // ✅ Identify actor (the person making the change)
+    const actingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, role: true },
+    });
+
+    // ✅ Log activity
+    await logOrderActivity({
+      orderId: updatedOrder.id,
+      userId,
+      action: "STATUS_UPDATED",
+      message: `Order status changed to ${status} by ${actingUser?.name || "User"}`,
+    });
+
+    return NextResponse.json(
+      {
+        message: `Order status updated to ${status}`,
+        order: updatedOrder,
+      },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error("Update order error:", error);
+
+    if (error.message?.includes("Token expired")) {
+      return NextResponse.json({ message: "Token expired" }, { status: 401 });
+    }
+
+    return NextResponse.json(
+      { message: "Something went wrong updating order" },
+      { status: 500 }
+    );
+  }
+});
+
+
+// =======================
+// DELETE: Remove an Order (Admins only)
+// =======================
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   const { id } = params;
 
   if (!id) {
@@ -131,41 +555,66 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
   return authMiddleware(async (req, context) => {
     try {
-      const { userId, userRole } = context;
+      const { userRole,userId } = context;
 
+      // ✅ Only Admins can delete orders
       if (userRole !== "ADMIN") {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 403 });
+        return NextResponse.json({ message: "Unauthorized: Admins only" }, { status: 403 });
       }
 
-      const body = await req.json();
-      const { status } = body;
-
-      if (!['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED'].includes(status)) {
-        return NextResponse.json({ message: "Invalid order status" }, { status: 400 });
-      }
-
-      const updatedOrder = await prisma.order.update({
-        where: { id }, // use extracted route param
-        data: { status },
+      // ✅ Check if order exists
+      const existingOrder = await prisma.order.findUnique({
+        where: { id },
         include: {
-          user: { select: { name: true, email: true } },
-          party: { select: { name: true } },
           orderItems: {
-            include: {
-              product: { select: { name: true, price: true, stock: true } }
-            }
-          }
-        }
+            include: { product: { select: { id: true, name: true } } },
+          },
+        },
       });
 
-      return NextResponse.json(updatedOrder, { status: 200 });
-    } catch (error) {
-      console.error("Update order error:", error);
+      if (!existingOrder) {
+        return NextResponse.json({ message: "Order not found" }, { status: 404 });
+      }
+
+      // ✅ Restore product stock before deleting (if desired)
+      // This ensures deleting an order adds back its item quantities.
+      await prisma.$transaction(async (tx) => {
+        for (const item of existingOrder.orderItems) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
+
+        // Delete related orderItems first (cascade if not set)
+        await tx.orderItem.deleteMany({ where: { orderId: id } });
+
+        // Delete the order itself
+        await tx.order.delete({ where: { id } });
+      });
+      await logOrderActivity({
+        orderId: id,
+        userId,
+        action: "ORDER_DELETED",
+        message: "Order deleted by Admin",
+      });
       return NextResponse.json(
-        { message: "Something went wrong updating order" },
+        { message: `Order ${id} deleted successfully` },
+        { status: 200 }
+      );
+    } catch (error: any) {
+      console.error("Delete order error:", error);
+
+      if (error.message?.includes("Token expired")) {
+        return NextResponse.json({ message: "Token expired" }, { status: 401 });
+      }
+
+      return NextResponse.json(
+        { message: "Something went wrong deleting the order" },
         { status: 500 }
       );
     }
   })(req, { params });
 }
+
 

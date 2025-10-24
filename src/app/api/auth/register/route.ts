@@ -391,31 +391,119 @@ export const config = {
   },
 };
 
+// export async function POST(req: Request) {
+//   try {
+//     const { fields, files } = await parseForm(req);
+//     const { name, email, password, confirmPassword, mobile } = fields;
+//     console.log(password,confirmPassword,'passw')
+//     if (!name || !email || !password || !confirmPassword || !mobile) {
+//       return NextResponse.json({ message: "All fields are required" }, { status: 400 });
+//     }
+//     const passwordStr = Array.isArray(password) ? password[0] : password;
+//     const confirmPasswordStr = Array.isArray(confirmPassword) ? confirmPassword[0] : confirmPassword;
+//     if (passwordStr !== confirmPasswordStr) {
+//       return NextResponse.json({ message: "Passwords do not match" }, { status: 400 });
+//     }
+
+//     const existingUser = await prisma.user.findUnique({ where: { mobile: String(mobile) } });
+//     if (existingUser) {
+//       return NextResponse.json({ message: "Mobile number already registered" }, { status: 409 });
+//     }
+
+//     // Handle image upload (same as before)
+//     let imageUrl = "";
+//     if (files.image) {
+//       const file = Array.isArray(files.image) ? files.image[0] : files.image;
+//       const tempPath = file.filepath;
+//       const uploadDir = path.join(process.cwd(), "public/uploads");
+//       if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+//       const fileName =
+//         (file.originalFilename || "profile.png").split(".")[0] +
+//         "-" +
+//         Date.now() +
+//         ".webp";
+//       const destPath = path.join(uploadDir, fileName);
+
+//       await sharp(tempPath).webp({ quality: 80 }).toFile(destPath);
+//       fs.unlinkSync(tempPath);
+//       imageUrl = `/uploads/${fileName}`;
+//     }
+
+//     const hashedPassword = await bcrypt.hash(String(password), 10);
+
+//     // Generate OTP
+//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//     const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+
+//     // Save user (not verified yet)
+//     await prisma.user.create({
+//       data: {
+//         name: String(name),
+//         email: String(email),
+//         password: hashedPassword,
+//         mobile: String(mobile),
+//         image: imageUrl,
+//         otp,
+//         otpExpiresAt,
+//         isVerified: false,
+//         role: "CUSTOMER",
+//       },
+//     });
+
+//     // Send OTP via Twilio SMS
+//     await twilioClient.messages.create({
+//       body: `Your verification code is ${otp}`,
+//       from: twilioFrom,
+//       to: String(mobile).startsWith("+") ? String(mobile) : `+91${mobile}`,
+//     });
+
+//     return NextResponse.json({ message: "OTP sent to your mobile number" }, { status: 200 });
+//   } catch (error: any) {
+//     console.error("Registration error:", error);
+//     return NextResponse.json({ message: "Something went wrong during registration" }, { status: 500 });
+//   }
+// }
 export async function POST(req: Request) {
   try {
     const { fields, files } = await parseForm(req);
     const { name, email, password, confirmPassword, mobile } = fields;
-    console.log(password,confirmPassword,'passw')
+
+    // ✅ Validate all fields
     if (!name || !email || !password || !confirmPassword || !mobile) {
-      return NextResponse.json({ message: "All fields are required" }, { status: 400 });
+      return NextResponse.json(
+        { message: "All fields are required" },
+        { status: 400 }
+      );
     }
+
     const passwordStr = Array.isArray(password) ? password[0] : password;
     const confirmPasswordStr = Array.isArray(confirmPassword) ? confirmPassword[0] : confirmPassword;
+
     if (passwordStr !== confirmPasswordStr) {
-      return NextResponse.json({ message: "Passwords do not match" }, { status: 400 });
+      return NextResponse.json(
+        { message: "Passwords do not match" },
+        { status: 400 }
+      );
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { mobile: String(mobile) } });
+    // ✅ Check existing user
+    const existingUser = await prisma.user.findUnique({
+      where: { mobile: String(mobile) },
+    });
     if (existingUser) {
-      return NextResponse.json({ message: "Mobile number already registered" }, { status: 409 });
+      return NextResponse.json(
+        { message: "Mobile number already registered" },
+        { status: 409 }
+      );
     }
 
-    // Handle image upload (same as before)
+    // ✅ Handle image upload (with base URL support)
     let imageUrl = "";
     if (files.image) {
       const file = Array.isArray(files.image) ? files.image[0] : files.image;
-      const tempPath = file.filepath;
       const uploadDir = path.join(process.cwd(), "public/uploads");
+
       if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
       const fileName =
@@ -425,19 +513,21 @@ export async function POST(req: Request) {
         ".webp";
       const destPath = path.join(uploadDir, fileName);
 
-      await sharp(tempPath).webp({ quality: 80 }).toFile(destPath);
-      fs.unlinkSync(tempPath);
+      await sharp(file.filepath).webp({ quality: 80 }).toFile(destPath);
+      fs.unlinkSync(file.filepath);
+
       imageUrl = `/uploads/${fileName}`;
     }
 
-    const hashedPassword = await bcrypt.hash(String(password), 10);
+    // ✅ Hash password
+    const hashedPassword = await bcrypt.hash(String(passwordStr), 10);
 
-    // Generate OTP
+    // ✅ Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
 
-    // Save user (not verified yet)
-    await prisma.user.create({
+    // ✅ Create user (not verified yet)
+    const newUser = await prisma.user.create({
       data: {
         name: String(name),
         email: String(email),
@@ -451,16 +541,35 @@ export async function POST(req: Request) {
       },
     });
 
-    // Send OTP via Twilio SMS
+    // ✅ Send OTP via Twilio SMS
     await twilioClient.messages.create({
       body: `Your verification code is ${otp}`,
       from: twilioFrom,
       to: String(mobile).startsWith("+") ? String(mobile) : `+91${mobile}`,
     });
 
-    return NextResponse.json({ message: "OTP sent to your mobile number" }, { status: 200 });
+    // ✅ Build full image URL like product/profile APIs
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+    const userWithFullUrl = {
+      ...newUser,
+      image: newUser.image ? `${baseUrl}${newUser.image}` : null,
+    };
+
+    return NextResponse.json(
+      {
+        message: "OTP sent to your mobile number",
+        user: userWithFullUrl,
+      },
+      { status: 200 }
+    );
   } catch (error: any) {
     console.error("Registration error:", error);
-    return NextResponse.json({ message: "Something went wrong during registration" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Something went wrong during registration" },
+      { status: 500 }
+    );
   }
 }
+

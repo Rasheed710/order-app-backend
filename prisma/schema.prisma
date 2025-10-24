@@ -9,47 +9,73 @@ generator client {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  password  String
-  name      String
-  mobile    String    @unique
-  image     String?
-  role      String    @default("CUSTOMER") // "CUSTOMER", "ADMIN"
-  isVerified Boolean  @default(false)
-  orders    Order[]
+  id            String           @id @default(uuid())
+  email         String           @unique
+  password      String
+  name          String
+  mobile        String           @unique
+  image         String?
+  role          String           @default("CUSTOMER") // "CUSTOMER", "ADMIN"
+  isVerified    Boolean          @default(false)
+
+  // ======================
+  // 🔹 Relationships
+  // ======================
+  orders        Order[]
+  parties       Party[]
+  attendances    Attendance[]  @relation("UserAttendance")
+  orderActivities OrderActivity[]
+
+  // ======================
+  // 🔹 OTP Fields (for login/registration)
+  // ======================
   otp           String?
-  otpExpiresAt   DateTime?
-  otpLastSentAt  DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  refreshToken String? 
+  otpExpiresAt  DateTime?
+  otpLastSentAt DateTime?
+
+  // ======================
+  // 🔹 For mobile number change verification
+  // ======================
+  pendingMobile      String?     // temporarily stores new mobile until OTP verified
+  mobileOtp          String?     // OTP sent for mobile number change
+  mobileOtpExpiresAt DateTime?   // expiry for mobile change OTP
+
+  // ======================
+  // 🔹 Auth & meta
+  // ======================
+  refreshToken  String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 }
 
+
 model Product {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   name        String
   description String?
   price       Float
   imageUrl    String?
   category    String?
-  stock       Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  stock       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   orderItems  OrderItem[]
 }
 
 model Order {
-  id        String    @id @default(uuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id])
+  id         String          @id @default(uuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id])
   partyId    String
-  party      Party       @relation(fields: [partyId], references: [id]) 
-  status    String    @default("PENDING") // PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED
-  total     Float
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  party      Party           @relation(fields: [partyId], references: [id]) 
+  status     String          @default("PENDING") // PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED
+  total      Float
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
   orderItems OrderItem[]
+
+  // ✅ New: reverse relation to OrderActivity
+  activities OrderActivity[]
 }
 
 model OrderItem {
@@ -59,16 +85,47 @@ model OrderItem {
   productId String
   product   Product  @relation(fields: [productId], references: [id])
   quantity  Int
-  price     Float // Price at the time of order
+  price     Float
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
 model Party {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String
-  email     String?
-  address   String?
-  createdAt DateTime @default(now())
-   orders  Order[] 
+  id           String    @id @default(cuid())
+  name         String
+  phone        String
+  email        String?
+  address      String?
+  createdAt    DateTime  @default(now())
+  createdById  String?   
+  createdBy    User?     @relation(fields: [createdById], references: [id])
+  orders       Order[] 
 }
+
+model OrderActivity {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String   // e.g. "ORDER_CREATED", "STATUS_UPDATED", "ORDER_DELETED"
+  message    String   // e.g. "Order status changed to SHIPPED by Admin"
+  createdAt  DateTime @default(now())
+}
+
+model Attendance {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User      @relation("UserAttendance", fields: [userId], references: [id])
+  clockInTime   DateTime  @default(now())
+  clockOutTime  DateTime?
+  breakStart    DateTime?         // 🟡 when break started
+  breakEnd      DateTime?         // 🟢 when break ended
+  isOnBreak     Boolean   @default(false) // ✅ indicates if user is currently on break
+  location      String?
+  totalBreakMinutes Int      @default(0)
+  totalOrders   Int       @default(0)
+  totalSales    Float     @default(0)
+  createdAt     DateTime  @default(now())
+}
+

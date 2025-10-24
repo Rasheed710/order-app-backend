@@ -710,8 +710,8 @@ export default function PartiesAdminPage() {
         `/api/party?page=${currentPage}&limit=${itemsPerPage}&search=${searchQuery}&sortField=${sortField}&sortOrder=${sortOrder}`
       );
       const data = await res.json();
-      setParties(data.parties);
-      setTotalParties(data.total);
+      setParties(data.data || []); // ✅ corrected key
+      setTotalParties(data.meta?.totalCount || 0); // ✅ corrected key
     } catch (err) {
       console.error(err);
     } finally {

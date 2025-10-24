@@ -65,24 +65,141 @@ import fs from 'fs';
 import path from 'path';
 
 // GET /api/products/[id]
-export const GET = authMiddleware(async (req, { params }) => {
-  try {
-    const { id } = params;
-    const product = await prisma.product.findUnique({ where: { id } });
+// export const GET = authMiddleware(async (req, { params }) => {
+//   try {
+//     const { id } = params;
+//     const product = await prisma.product.findUnique({ where: { id } });
 
-    if (!product) {
-      return NextResponse.json({ message: "Product not found" }, { status: 404 });
+//     if (!product) {
+//       return NextResponse.json({ message: "Product not found" }, { status: 404 });
+//     }
+
+//     return NextResponse.json(product, { status: 200 });
+//   } catch (error) {
+//     console.error("Get product error:", error);
+//     return NextResponse.json(
+//       { message: "Something went wrong fetching product" },
+//       { status: 500 }
+//     );
+//   }
+// });
+
+// export const GET = authMiddleware(async (req, { params }: { params: { id: string } }) => {
+//   try {
+//     const { id } = params;
+
+//     // 🧩 Validate product ID
+//     if (!id) {
+//       return NextResponse.json({ message: "Product ID is required" }, { status: 400 });
+//     }
+
+//     // 🧠 Fetch specific product with safe field selection
+//     const product = await prisma.product.findUnique({
+//       where: { id },
+//       select: {
+//         id: true,
+//         name: true,
+//         description: true,
+//         price: true,
+//         category: true,
+//         stock: true,
+//         imageUrl: true,
+//         status: true,
+//         createdAt: true,
+//         updatedAt: true,
+//       },
+//     });
+
+//     // 🚫 Product not found
+//     if (!product) {
+//       return NextResponse.json({ message: "Product not found" }, { status: 404 });
+//     }
+
+//     // ✅ Return clean response
+//     return NextResponse.json(
+//       {
+//         message: "Product fetched successfully",
+//         data: product,
+//       },
+//       { status: 200 }
+//     );
+//   } catch (error: any) {
+//     console.error("❌ Get product error:", error);
+//     return NextResponse.json(
+//       { message: "Something went wrong fetching product" },
+//       { status: 500 }
+//     );
+//   }
+// });
+
+
+export const GET = authMiddleware(
+  async (req, { params }: { params: { id: string } }) => {
+    try {
+      const { id } = params;
+
+      // 🧩 Validate product ID
+      if (!id) {
+        return NextResponse.json(
+          { message: "Product ID is required" },
+          { status: 400 }
+        );
+      }
+
+      // 🧠 Fetch product safely
+      const product = await prisma.product.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          category: true,
+          stock: true,
+          imageUrl: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // 🚫 Not found
+      if (!product) {
+        return NextResponse.json(
+          { message: "Product not found" },
+          { status: 404 }
+        );
+      }
+
+      // 🌐 Ensure full image URL
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+      const productWithFullUrl = {
+        ...product,
+        imageUrl: product.imageUrl
+          ? `${baseUrl}${product.imageUrl}`
+          : null,
+      };
+
+      // ✅ Return formatted response
+      return NextResponse.json(
+        {
+          message: "Product fetched successfully",
+          data: productWithFullUrl,
+        },
+        { status: 200 }
+      );
+    } catch (error: any) {
+      console.error("❌ Get product error:", error);
+      return NextResponse.json(
+        { message: "Something went wrong fetching product" },
+        { status: 500 }
+      );
     }
-
-    return NextResponse.json(product, { status: 200 });
-  } catch (error) {
-    console.error("Get product error:", error);
-    return NextResponse.json(
-      { message: "Something went wrong fetching product" },
-      { status: 500 }
-    );
   }
-});
+);
+
 
 // PUT /api/products/[id]
 // export const PUT = adminMiddleware(async (req, { params }) => {
@@ -263,56 +380,265 @@ async function parseForm(req: Request) {
   );
 }
 
-export const PUT = adminMiddleware(async (req: Request, context: { params: { id: string } }) => {
-  try {
-    const { id } = context.params; 
-    const { fields, files } = await parseForm(req);
+// export const PUT = adminMiddleware(async (req: Request, context: { params: { id: string } }) => {
+//   try {
+//     const { id } = context.params; 
+//     const { fields, files } = await parseForm(req);
 
-    const { name, description, price, category, stock } = fields;
-    let imageUrl : string | undefined;
+//     const { name, description, price, category, stock } = fields;
+//     let imageUrl : string | undefined;
 
-    if (files.image) {
-      // For now just store file path, you can upload to cloud storage
-      const file = Array.isArray(files.image) ? files.image[0] : files.image;
-      const tempPath = file.filepath;
-      const uploadDir = path.join(process.cwd(), "public/uploads");
-      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+//     if (files.image) {
+//       // For now just store file path, you can upload to cloud storage
+//       const file = Array.isArray(files.image) ? files.image[0] : files.image;
+//       const tempPath = file.filepath;
+//       const uploadDir = path.join(process.cwd(), "public/uploads");
+//       if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
       
-      const fileName = file.originalFilename || "uploaded.png";
-      const destPath = path.join(uploadDir, fileName);
+//       const fileName = file.originalFilename || "uploaded.png";
+//       const destPath = path.join(uploadDir, fileName);
     
-      await sharp(tempPath)
-      .webp({ quality: 80 })
-      .toFile(destPath);
+//       await sharp(tempPath)
+//       .webp({ quality: 80 })
+//       .toFile(destPath);
   
-    // Remove temp file if needed
-    fs.unlinkSync(tempPath);
-      imageUrl = `/uploads/${fileName}`;
-      console.log(imageUrl,'inside')
+//     // Remove temp file if needed
+//     fs.unlinkSync(tempPath);
+//       imageUrl = `/uploads/${fileName}`;
+//       console.log(imageUrl,'inside')
+//     }
+
+//     const updatedProduct = await prisma.product.update({
+//       where: { id },
+//       data: {
+//         name: String(name),
+//         description: String(description),
+//         price: parseFloat(String(price)),
+//         category: String(category),
+//         stock: parseInt(String(stock)),
+//         // ...(imageUrl ? { imageUrl } : {}), 
+//         ...(imageUrl !== undefined ? { imageUrl } : {}),// Only update if file uploaded
+//       },
+//     });
+
+//     return NextResponse.json(updatedProduct, { status: 200 });
+//   } catch (error) {
+//     console.error("Update product error:", error);
+//     return NextResponse.json(
+//       { message: "Something went wrong updating product" },
+//       { status: 500 }
+//     );
+//   }
+// });
+
+
+
+// export const PUT = adminMiddleware(async (req: Request, { params }: { params: { id: string } }) => {
+//   try {
+//     const { id } = params;
+//     const { fields, files } = await parseForm(req);
+
+//     const { name, description, price, category, stock } = fields;
+//     let imageUrl: string | undefined;
+
+//     // 🧩 Validate required data
+//     if (!id) {
+//       return NextResponse.json({ message: "Product ID is required" }, { status: 400 });
+//     }
+
+//     // 🧠 Ensure product exists before updating
+//     const existingProduct = await prisma.product.findUnique({ where: { id } });
+//     if (!existingProduct) {
+//       return NextResponse.json({ message: "Product not found" }, { status: 404 });
+//     }
+
+//     // 🖼 Handle image update (optional)
+//     if (files.image) {
+//       const file = Array.isArray(files.image) ? files.image[0] : files.image;
+//       const tempPath = file.filepath;
+//       const uploadDir = path.join(process.cwd(), "public/uploads");
+//       if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+//       // ✅ Create unique .webp filename
+//       const fileName =
+//         (file.originalFilename || "uploaded").split(".")[0] + "-" + Date.now() + ".webp";
+//       const destPath = path.join(uploadDir, fileName);
+
+//       await sharp(tempPath)
+//         .resize(800, 800, { fit: "inside" }) // optional: limit image size
+//         .webp({ quality: 80 })
+//         .toFile(destPath);
+
+//       fs.unlinkSync(tempPath); // remove temp file
+
+//       imageUrl = `/uploads/${fileName}`;
+
+//       // 🧹 Remove old image (if exists)
+//       if (existingProduct.imageUrl) {
+//         const oldImagePath = path.join(process.cwd(), "public", existingProduct.imageUrl);
+//         if (fs.existsSync(oldImagePath)) fs.unlinkSync(oldImagePath);
+//       }
+//     }
+
+//     // 💾 Update product in DB
+//     const updatedProduct = await prisma.product.update({
+//       where: { id },
+//       data: {
+//         ...(name && { name: String(name) }),
+//         ...(description && { description: String(description) }),
+//         ...(price && { price: parseFloat(String(price)) }),
+//         ...(category && { category: String(category) }),
+//         ...(stock && { stock: parseInt(String(stock)) }),
+//         ...(imageUrl ? { imageUrl } : {}), // only update if new image uploaded
+//       },
+//       select: {
+//         id: true,
+//         name: true,
+//         description: true,
+//         price: true,
+//         category: true,
+//         stock: true,
+//         imageUrl: true,
+//         updatedAt: true,
+//       },
+//     });
+
+//     return NextResponse.json(
+//       {
+//         message: "Product updated successfully",
+//         data: updatedProduct,
+//       },
+//       { status: 200 }
+//     );
+//   } catch (error: any) {
+//     console.error("❌ Update product error:", error);
+//     return NextResponse.json(
+//       { message: "Something went wrong updating product" },
+//       { status: 500 }
+//     );
+//   }
+// });
+
+
+
+export const PUT = adminMiddleware(
+  async (req: Request, { params }: { params: { id: string } }) => {
+    try {
+      const { id } = params;
+      const { fields, files } = await parseForm(req);
+
+      const { name, description, price, category, stock } = fields;
+      let imageUrl: string | undefined;
+
+      // 🧩 Validate required data
+      if (!id) {
+        return NextResponse.json(
+          { message: "Product ID is required" },
+          { status: 400 }
+        );
+      }
+
+      // 🧠 Ensure product exists before updating
+      const existingProduct = await prisma.product.findUnique({
+        where: { id },
+      });
+
+      if (!existingProduct) {
+        return NextResponse.json(
+          { message: "Product not found" },
+          { status: 404 }
+        );
+      }
+
+      // 🖼 Handle image update (optional)
+      if (files.image) {
+        const file = Array.isArray(files.image)
+          ? files.image[0]
+          : files.image;
+        const tempPath = file.filepath;
+        const uploadDir = path.join(process.cwd(), "public/uploads");
+
+        if (!fs.existsSync(uploadDir))
+          fs.mkdirSync(uploadDir, { recursive: true });
+
+        // ✅ Create unique .webp filename
+        const fileName =
+          (file.originalFilename || "uploaded").split(".")[0] +
+          "-" +
+          Date.now() +
+          ".webp";
+        const destPath = path.join(uploadDir, fileName);
+
+        await sharp(tempPath)
+          .resize(800, 800, { fit: "inside" }) // optional: limit image size
+          .webp({ quality: 80 })
+          .toFile(destPath);
+
+        fs.unlinkSync(tempPath); // remove temp file
+
+        imageUrl = `/uploads/${fileName}`;
+
+        // 🧹 Remove old image (if exists)
+        if (existingProduct.imageUrl) {
+          const oldImagePath = path.join(
+            process.cwd(),
+            "public",
+            existingProduct.imageUrl
+          );
+          if (fs.existsSync(oldImagePath)) fs.unlinkSync(oldImagePath);
+        }
+      }
+
+      // 💾 Update product in DB
+      const updatedProduct = await prisma.product.update({
+        where: { id },
+        data: {
+          ...(name && { name: String(name) }),
+          ...(description && { description: String(description) }),
+          ...(price && { price: parseFloat(String(price)) }),
+          ...(category && { category: String(category) }),
+          ...(stock && { stock: parseInt(String(stock)) }),
+          ...(imageUrl ? { imageUrl } : {}),
+        },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          category: true,
+          stock: true,
+          imageUrl: true,
+          updatedAt: true,
+        },
+      });
+
+      // 🌐 Add full image URL for React Native
+      const baseUrl =
+        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+      const updatedWithFullUrl = {
+        ...updatedProduct,
+        imageUrl: updatedProduct.imageUrl
+          ? `${baseUrl}${updatedProduct.imageUrl}`
+          : null,
+      };
+
+      return NextResponse.json(
+        {
+          message: "Product updated successfully",
+          data: updatedWithFullUrl,
+        },
+        { status: 200 }
+      );
+    } catch (error: any) {
+      console.error("❌ Update product error:", error);
+      return NextResponse.json(
+        { message: error.message || "Something went wrong updating product" },
+        { status: 500 }
+      );
     }
-
-    const updatedProduct = await prisma.product.update({
-      where: { id },
-      data: {
-        name: String(name),
-        description: String(description),
-        price: parseFloat(String(price)),
-        category: String(category),
-        stock: parseInt(String(stock)),
-        // ...(imageUrl ? { imageUrl } : {}), 
-        ...(imageUrl !== undefined ? { imageUrl } : {}),// Only update if file uploaded
-      },
-    });
-
-    return NextResponse.json(updatedProduct, { status: 200 });
-  } catch (error) {
-    console.error("Update product error:", error);
-    return NextResponse.json(
-      { message: "Something went wrong updating product" },
-      { status: 500 }
-    );
   }
-});
+);
 
 
 // export const runtime = "nodejs"; /// required since we're using fs
@@ -407,31 +733,155 @@ export const PUT = adminMiddleware(async (req: Request, context: { params: { id:
 //     );
 //   }
 // });
-export const DELETE = adminMiddleware(async (req: Request, { params }: { params: { id: string } }) => {
-  const { id } = params;
+// export const DELETE = adminMiddleware(async (req: Request, { params }: { params: { id: string } }) => {
+//   const { id } = params;
 
+//   try {
+//     // Find product
+//     const product = await prisma.product.findUnique({ where: { id } });
+//     if (!product) {
+//       return NextResponse.json({ message: "Product not found" }, { status: 404 });
+//     }
+
+//     // Delete image from /public/uploads if exists
+//     if (product.imageUrl) {
+//       const imagePath = path.join(process.cwd(), "public", product.imageUrl);
+//       if (fs.existsSync(imagePath)) {
+//         fs.unlinkSync(imagePath);
+//       }
+//     }
+
+//     // Delete product from database
+//     await prisma.product.delete({ where: { id } });
+
+//     // Return JSON response (do not use 204)
+//     return NextResponse.json({ message: "Product deleted successfully" }, { status: 200 });
+//   } catch (error) {
+//     console.error("Delete product error:", error);
+//     return NextResponse.json(
+//       { message: "Something went wrong deleting product" },
+//       { status: 500 }
+//     );
+//   }
+// });
+
+
+// export const DELETE = adminMiddleware(async (req: Request, { params }: { params: { id: string } }) => {
+//   try {
+//     const { id } = params;
+
+//     // 🧩 Validate input
+//     if (!id) {
+//       return NextResponse.json({ message: "Product ID is required" }, { status: 400 });
+//     }
+
+//     // 🔍 Find product
+//     const product = await prisma.product.findUnique({
+//       where: { id },
+//       select: { id: true, name: true, imageUrl: true },
+//     });
+
+//     if (!product) {
+//       return NextResponse.json({ message: "Product not found" }, { status: 404 });
+//     }
+
+//     // 🖼 Remove associated image if exists
+//     if (product.imageUrl) {
+//       const imagePath = path.join(process.cwd(), "public", product.imageUrl);
+//       try {
+//         if (fs.existsSync(imagePath)) {
+//           fs.unlinkSync(imagePath);
+//           console.log(`🧹 Deleted image file: ${imagePath}`);
+//         }
+//       } catch (fileError) {
+//         console.warn(`⚠️ Could not delete image file: ${imagePath}`, fileError);
+//       }
+//     }
+
+//     // 🗑 Delete product from DB
+//     await prisma.product.delete({ where: { id } });
+
+//     // ✅ Return success response
+//     return NextResponse.json(
+//       {
+//         message: `Product "${product.name}" deleted successfully`,
+//         deletedId: product.id,
+//       },
+//       { status: 200 }
+//     );
+//   } catch (error: any) {
+//     console.error("❌ Delete product error:", error);
+//     return NextResponse.json(
+//       { message: "Something went wrong deleting product" },
+//       { status: 500 }
+//     );
+//   }
+// });
+
+export const DELETE = adminMiddleware(async (req: Request, context: { params: Promise<{ id: string }> }) => {
   try {
-    // Find product
-    const product = await prisma.product.findUnique({ where: { id } });
+    const { id } = await context.params; // ✅ FIXED: await params
+
+    // 🧩 Validate ID
+    if (!id) {
+      return NextResponse.json({ message: "Product ID is required" }, { status: 400 });
+    }
+
+    // 🔍 Check product existence
+    const product = await prisma.product.findUnique({
+      where: { id },
+      select: { id: true, name: true, imageUrl: true },
+    });
+
     if (!product) {
       return NextResponse.json({ message: "Product not found" }, { status: 404 });
     }
 
-    // Delete image from /public/uploads if exists
+    // 🔎 Check if product is used in any OrderItem
+    const isUsed = await prisma.orderItem.findFirst({
+      where: { productId: id },
+    });
+
+    if (isUsed) {
+      return NextResponse.json(
+        {
+          message: `Cannot delete product "${product.name}" because it is used in existing orders.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // 🖼 Delete image file (if exists)
     if (product.imageUrl) {
       const imagePath = path.join(process.cwd(), "public", product.imageUrl);
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
+      try {
+        if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+      } catch (err) {
+        console.warn("⚠️ Failed to delete image file:", err);
       }
     }
 
-    // Delete product from database
+    // 🗑 Delete product safely
     await prisma.product.delete({ where: { id } });
 
-    // Return JSON response (do not use 204)
-    return NextResponse.json({ message: "Product deleted successfully" }, { status: 200 });
-  } catch (error) {
-    console.error("Delete product error:", error);
+    return NextResponse.json(
+      {
+        message: `Product "${product.name}" deleted successfully`,
+        deletedId: product.id,
+      },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error("❌ Delete product error:", error);
+
+    // Prisma FK violation
+    if (error.code === "P2003") {
+      return NextResponse.json(
+        { message: "Cannot delete product because it’s linked to existing orders." },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { message: "Something went wrong deleting product" },
       { status: 500 }
