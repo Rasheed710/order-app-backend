@@ -33,6 +33,11 @@ model User {
   otpExpiresAt  DateTime?
   otpLastSentAt DateTime?
 
+    sentNotifications NotificationLog[] @relation("UserToNotificationLog")
+
+  // 👇 If you added per-user Notification model earlier, keep this too:
+  notifications Notification[]
+
   // ======================
   // 🔹 For mobile number change verification
   // ======================
@@ -46,6 +51,7 @@ model User {
   refreshToken  String?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
+  fcmToken      String?  
 }
 
 
@@ -128,4 +134,42 @@ model Attendance {
   totalSales    Float     @default(0)
   createdAt     DateTime  @default(now())
 }
+
+model NotificationLog {
+  id            String   @id @default(uuid())
+  title         String
+  body          String
+  sendToAll     Boolean  @default(false)
+  recipientIds  String?             // Comma-separated user IDs if not a broadcast
+  createdAt     DateTime @default(now())
+  
+  createdBy     String?             // Admin user ID (nullable if system message)
+  sender        User?    @relation("UserToNotificationLog", fields: [createdBy], references: [id])
+
+  // Indexes for performance
+  @@index([createdBy])
+  @@index([createdAt])
+  @@index([sendToAll])
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  body        String
+  type        String?              // e.g. ORDER_UPDATE, ADMIN_MESSAGE, PROMO
+  read        Boolean  @default(false)
+  extra       Json?                // Metadata (e.g., { "screen": "OrderDetails", "orderId": "123" })
+  createdAt   DateTime @default(now())
+
+  // Indexes for faster lookups and filtering
+  @@index([userId])
+  @@index([type])
+  @@index([read])
+  @@index([createdAt])
+}
+
+
 

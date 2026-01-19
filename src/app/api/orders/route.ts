@@ -123,6 +123,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { authMiddleware } from '../../../../lib/authMiddleware'
 import { logOrderActivity } from '../../../../lib/orderLogger';
+import { sendNotificationToAdmins, sendNotificationToUser } from '../../../../lib/sendNotification';
 
 // GET: Admin → all orders, Customer → own orders
 // export async function GET(req: Request) {
@@ -886,6 +887,37 @@ export const POST = authMiddleware(async (req, context: { userId: string; userRo
       action: "ORDER_CREATED",
       message: `Order created by ${newOrder?.user?.name || "User"}`,
     });
+    
+    // await sendNotificationToAdmins(
+    //   "🆕 New Order Received",
+    //   `${newOrder.user.name} placed an order for ${party.name}`
+    // );
+    await sendNotificationToAdmins(
+      "🆕 New Order Received",
+      `${newOrder.user.name} placed an order for ${party.name}`,
+      {
+        type: "ORDER_NEW",
+        extra: {
+          screen: "OrderDetails",
+          orderId: newOrder.id,
+          partyId: party.id,
+        },
+        createdBy: newOrder.user.id,
+      }
+    );
+
+    await sendNotificationToUser(
+      newOrder.user.id,
+      "✅ Order Placed Successfully",
+      `Your order for ${party.name} has been submitted.`,
+      {
+        type: "ORDER_CONFIRM",
+        extra: {
+          screen: "MyOrders",
+          orderId: newOrder.id,
+        },
+      }
+    );
 
     return NextResponse.json(
       { message: "Order placed successfully", order: newOrder },

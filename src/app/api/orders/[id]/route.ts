@@ -430,6 +430,121 @@ export const GET = authMiddleware(async (req, context) => {
 //   })(req, { params });
 // }
 
+// export const PUT = authMiddleware(async (req, context) => {
+//   try {
+//     const { userRole, userId, params } = context;
+//     const { id } = params;
+
+//     if (!id) {
+//       return NextResponse.json({ message: "Order ID is required" }, { status: 400 });
+//     }
+
+//     const body = await req.json();
+//     const { status } = body;
+
+//     const validStatuses = ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"];
+//     if (!validStatuses.includes(status)) {
+//       return NextResponse.json(
+//         { message: "Invalid order status", allowed: validStatuses },
+//         { status: 400 }
+//       );
+//     }
+
+//     // 🧾 Fetch the existing order
+//     const existingOrder = await prisma.order.findUnique({
+//       where: { id },
+//       include: { user: true },
+//     });
+
+//     if (!existingOrder) {
+//       return NextResponse.json({ message: "Order not found" }, { status: 404 });
+//     }
+
+//     // 🧠 Role-based authorization logic
+//     if (userRole === "ADMIN") {
+//       // ✅ Admin can only update to CONFIRMED, SHIPPED, or CANCELLED
+//       if (!["CONFIRMED", "SHIPPED", "CANCELLED"].includes(status)) {
+//         return NextResponse.json(
+//           {
+//             message:
+//               "Admins can only change status to CONFIRMED, SHIPPED, or CANCELLED.",
+//           },
+//           { status: 403 }
+//         );
+//       }
+//     } else {
+//       // ✅ Non-admin (salesman/customer)
+//       if (userId !== existingOrder.userId) {
+//         return NextResponse.json(
+//           { message: "Forbidden: You can only update your own orders" },
+//           { status: 403 }
+//         );
+//       }
+
+//       if (!["DELIVERED", "CANCELLED"].includes(status)) {
+//         return NextResponse.json(
+//           {
+//             message:
+//               "You can only mark your order as DELIVERED or CANCELLED.",
+//           },
+//           { status: 403 }
+//         );
+//       }
+//     }
+
+//     // ✅ Update order status
+//     const updatedOrder = await prisma.order.update({
+//       where: { id },
+//       data: { status },
+//       include: {
+//         user: { select: { id: true, name: true, email: true } },
+//         party: { select: { id: true, name: true, phone: true, address: true } },
+//         orderItems: {
+//           include: {
+//             product: { select: { id: true, name: true, price: true, stock: true } },
+//           },
+//         },
+//       },
+//     });
+
+//     // ✅ Identify actor (the person making the change)
+//     const actingUser = await prisma.user.findUnique({
+//       where: { id: userId },
+//       select: { name: true, role: true },
+//     });
+
+//     // ✅ Log activity
+//     await logOrderActivity({
+//       orderId: updatedOrder.id,
+//       userId,
+//       action: "STATUS_UPDATED",
+//       message: `Order status changed to ${status} by ${actingUser?.name || "User"}`,
+//     });
+
+//     return NextResponse.json(
+//       {
+//         message: `Order status updated to ${status}`,
+//         order: updatedOrder,
+//       },
+//       { status: 200 }
+//     );
+//   } catch (error: any) {
+//     console.error("Update order error:", error);
+
+//     if (error.message?.includes("Token expired")) {
+//       return NextResponse.json({ message: "Token expired" }, { status: 401 });
+//     }
+
+//     return NextResponse.json(
+//       { message: "Something went wrong updating order" },
+//       { status: 500 }
+//     );
+//   }
+// });
+
+
+import { sendNotificationToUser, sendNotificationToAdmins } from "../../../../../lib/sendNotification"; 
+
 export const PUT = authMiddleware(async (req, context) => {
   try {
     const { userRole, userId, params } = context;
@@ -450,43 +565,37 @@ export const PUT = authMiddleware(async (req, context) => {
       );
     }
 
-    // 🧾 Fetch the existing order
+    // 🧾 Fetch existing order
     const existingOrder = await prisma.order.findUnique({
       where: { id },
-      include: { user: true },
+      include: {
+        user: { select: { id: true, name: true, role: true, fcmToken: true } },
+        party: true,
+      },
     });
 
     if (!existingOrder) {
       return NextResponse.json({ message: "Order not found" }, { status: 404 });
     }
 
-    // 🧠 Role-based authorization logic
+    // 🧠 Role-based authorization
     if (userRole === "ADMIN") {
-      // ✅ Admin can only update to CONFIRMED, SHIPPED, or CANCELLED
       if (!["CONFIRMED", "SHIPPED", "CANCELLED"].includes(status)) {
         return NextResponse.json(
-          {
-            message:
-              "Admins can only change status to CONFIRMED, SHIPPED, or CANCELLED.",
-          },
+          { message: "Admins can only change status to CONFIRMED, SHIPPED, or CANCELLED." },
           { status: 403 }
         );
       }
     } else {
-      // ✅ Non-admin (salesman/customer)
-      if (userId !== existingOrder.userId) {
+      if (userId !== existingOrder.user.id) {
         return NextResponse.json(
           { message: "Forbidden: You can only update your own orders" },
           { status: 403 }
         );
       }
-
       if (!["DELIVERED", "CANCELLED"].includes(status)) {
         return NextResponse.json(
-          {
-            message:
-              "You can only mark your order as DELIVERED or CANCELLED.",
-          },
+          { message: "You can only mark your order as DELIVERED or CANCELLED." },
           { status: 403 }
         );
       }
@@ -497,23 +606,21 @@ export const PUT = authMiddleware(async (req, context) => {
       where: { id },
       data: { status },
       include: {
-        user: { select: { id: true, name: true, email: true } },
-        party: { select: { id: true, name: true, phone: true, address: true } },
+        user: { select: { id: true, name: true, email: true, fcmToken: true } },
+        party: { select: { id: true, name: true } },
         orderItems: {
-          include: {
-            product: { select: { id: true, name: true, price: true, stock: true } },
-          },
+          include: { product: { select: { name: true, price: true } } },
         },
       },
     });
 
-    // ✅ Identify actor (the person making the change)
+    // 🧍 Identify actor
     const actingUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, role: true },
     });
 
-    // ✅ Log activity
+    // 📝 Log order activity
     await logOrderActivity({
       orderId: updatedOrder.id,
       userId,
@@ -521,13 +628,65 @@ export const PUT = authMiddleware(async (req, context) => {
       message: `Order status changed to ${status} by ${actingUser?.name || "User"}`,
     });
 
+    // 🔔 Send Notification
+    const title = `Order #${updatedOrder.id.slice(0, 6)} status updated`;
+    const message = `Order is now ${status} for ${updatedOrder.party?.name || "Party"}`;
+
+    // if (userRole === "ADMIN") {
+    //   // Notify the salesman
+    //   if (existingOrder.user?.fcmToken) {
+    //     await sendNotificationToUser(
+    //       existingOrder.user.id,
+    //       title,
+    //       message
+    //     );
+    //   }
+    // } else {
+    //   // Notify all admins
+    //   await sendNotificationToAdmins(title, `${actingUser?.name} marked an order as ${status}.`);
+    // }
+    if (userRole === "ADMIN") {
+      // 🔹 Notify the salesman (order owner)
+      if (existingOrder.user?.fcmToken) {
+        await sendNotificationToUser(
+          existingOrder.user.id,
+          "📦 Order Status Updated",
+          `Your order for ${existingOrder.party?.name || "the party"} was marked as ${status}.`,
+          {
+            type: "ORDER_UPDATE",
+            extra: {
+              screen: "OrderDetails",
+              orderId: existingOrder.id,
+              partyId: existingOrder.partyId,
+              status,
+            },
+          }
+        );
+      }
+    } else {
+      // 🔹 Notify all admins
+      await sendNotificationToAdmins(
+        "📋 Order Updated by Salesman",
+        `${actingUser?.name || "A salesman"} marked order #${existingOrder.id} as ${status}.`,
+        {
+          type: "ORDER_UPDATE_ADMIN",
+          extra: {
+            screen: "OrderDetails",
+            orderId: existingOrder.id,
+            partyId: existingOrder.partyId,
+            updatedBy: actingUser?.id,
+            status,
+          },
+        }
+      );
+    }
+    
+
     return NextResponse.json(
-      {
-        message: `Order status updated to ${status}`,
-        order: updatedOrder,
-      },
+      { message: `Order status updated to ${status}`, order: updatedOrder },
       { status: 200 }
     );
+
   } catch (error: any) {
     console.error("Update order error:", error);
 
@@ -541,6 +700,7 @@ export const PUT = authMiddleware(async (req, context) => {
     );
   }
 });
+
 
 
 // =======================
